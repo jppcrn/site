@@ -15,24 +15,24 @@
         #sidebar-content { padding: 20px; }
         #mapa { flex: 1; height: 100%; z-index: 1; background-color: #fff; }
         
+        .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution { filter: none; } 
+
         .form-group { margin-bottom: 15px; }
         label { font-size: 10px; color: var(--neon-cyan); margin-bottom: 5px; display: block; text-transform: uppercase; }
         input[type="text"], select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: var(--neon-green); font-family: 'Fira Code', monospace; font-size: 12px; box-sizing: border-box; }
         input[type="text"]:focus, select:focus { border-color: var(--neon-green); outline: none; }
         button.btn-primary { background: transparent; color: var(--neon-green); width: 100%; padding: 14px; border: 1px solid var(--neon-green); cursor: pointer; text-transform: uppercase; font-weight: bold; margin-top: 10px; }
         button.btn-primary:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 15px var(--neon-green); }
-        
         .telemetry-card { background: rgba(0, 0, 0, 0.6); border: 1px solid #333; border-left: 3px solid var(--neon-cyan); margin-bottom: 20px; }
         .card-header { background: rgba(0, 255, 255, 0.05); padding: 10px 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .motorista-nome { font-weight: bold; color: #fff; font-size: 14px; text-transform: uppercase; }
         .btn-delete { color: #555; background: none; border: none; font-size: 18px; cursor: pointer; }
         .btn-delete:hover { color: #ff0055; }
-        
         .card-body { padding: 15px; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 10px; color: #aaa; margin-bottom: 10px; }
         .info-value { color: var(--neon-green); font-size: 11px; margin-top: 2px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
-        /* CONTAINER DA FOTO */
+        /* ESTILO DA FOTO CAPTURADA */
         .foto-preview { grid-column: span 2; margin-top: 10px; border: 1px solid #333; background: #000; text-align: center; overflow: hidden; border-radius: 4px; }
         .foto-img { width: 100%; height: auto; display: block; border: 1px solid var(--neon-green); }
 
@@ -41,7 +41,6 @@
         .btn-zap { flex: 2; background: #003300; color: var(--neon-green); border: 1px solid var(--neon-green); padding: 10px; cursor: pointer; font-size: 11px; font-weight: bold; font-family: 'Fira Code', monospace; }
         .btn-zap:hover { background: var(--neon-green); color: black; }
         .btn-locate { flex: 1; background: #000; color: #fff; border: 1px solid #555; padding: 10px; cursor: pointer; font-size: 11px; }
-        
         .status-dot { height: 8px; width: 8px; background-color: #333; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .online { background-color: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -123,7 +122,10 @@
                             markers[id].setLatLng([dados.lat, dados.lon]);
                         } else {
                             markers[id] = L.marker([dados.lat, dados.lon]).addTo(map).bindPopup(dados.motorista);
-                            if(primeiraVez) { focar(dados.lat, dados.lon); primeiraVez = false; }
+                            if(primeiraVez) {
+                                focar(dados.lat, dados.lon);
+                                primeiraVez = false;
+                            }
                         }
                     }
                 }
