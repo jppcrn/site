@@ -136,11 +136,27 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('mapa', { zoomControl: false }).setView([-14.23, -51.92], 4);
+        var streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors'
+        });
+
+        var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles © Esri'
+        });
+
+        var map = L.map('mapa', {
+            center: [-14.23, -51.92],
+            zoom: 4,
+            zoomControl: false,
+            layers: [streetLayer]
+        });
+
+        var baseMaps = { "Mapa de Rua": streetLayer, "Satélite": satelliteLayer };
+        L.control.layers(baseMaps).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
         var markers = {};
+        var circles = {};
 
         function atualizar() {
             fetch('/api/frota').then(r => r.json()).then(frota => {
@@ -157,14 +173,15 @@
                         <div class="telemetry-card">
                             <div class="card-header">
                                 <div><span class="status-dot ${statusClass}"></span><b>${dados.motorista}</b></div>
-                                <button style="color:#f87171; background:none; border:none; cursor:pointer;" onclick="if(confirm('Excluir alvo?')) fetch('/excluir/${id}', {method:'DELETE'}).then(atualizar)">&times;</button>
+                                <button style="color:#f87171; background:none; border:none; cursor:pointer; font-size:16px;" onclick="if(confirm('Excluir alvo?')) fetch('/excluir/${id}', {method:'DELETE'}).then(atualizar)">×</button>
                             </div>
                             <div class="card-body">
                                 <div class="info-grid">
-                                    <div><div class="info-label">ÚLTIMO SINAL</div><div class="info-value">${dados.ultimo_visto}</div></div>
+                                    <div><div class="info-label">DISPOSITIVO</div><div class="info-value" style="color:#2563eb; font-weight:700;">${dados.device || '...'}</div></div>
                                     <div><div class="info-label">ENDEREÇO IP</div><div class="info-value">${dados.ip || '---'}</div></div>
                                     <div><div class="info-label">LATITUDE</div><div class="info-value">${latVal}</div></div>
                                     <div><div class="info-label">LONGITUDE</div><div class="info-value">${lonVal}</div></div>
+                                    <div><div class="info-label">ÚLTIMO SINAL</div><div class="info-value">${dados.ultimo_visto}</div></div>
                                     <div class="foto-preview">${fotoHtml}</div>
                                 </div>
                                 <div class="link-display" onclick="navigator.clipboard.writeText('${dados.link}'); alert('Link copiado!');">
@@ -178,9 +195,24 @@
                         </div>`;
                     
                     if(dados.lat && dados.lon) {
-                        if(!markers[id]) markers[id] = L.marker([dados.lat, dados.lon]).addTo(map)
-                            .bindPopup(`<b>${dados.motorista}</b><br>Visto: ${dados.ultimo_visto}`);
-                        else markers[id].setLatLng([dados.lat, dados.lon]);
+                        const streetViewLink = `https://www.google.com/maps?layer=c&cbll=${dados.lat},${dados.lon}`;
+
+                        if(!markers[id]) {
+                            markers[id] = L.marker([dados.lat, dados.lon]).addTo(map)
+                                .bindPopup(`
+                                    <b>${dados.motorista}</b><br>
+                                    ${dados.device || ''}<br>
+                                    Visto: ${dados.ultimo_visto}<br>
+                                    <a href="${streetViewLink}" target="_blank" style="color:#3b82f6; text-decoration:none; font-weight:bold;">📸 Abrir Street View</a>
+                                `);
+                        } else {
+                            markers[id].setLatLng([dados.lat, dados.lon]);
+                        }
+
+                        if (circles[id]) { map.removeLayer(circles[id]); }
+                        circles[id] = L.circle([dados.lat, dados.lon], {
+                            color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.2, radius: 30
+                        }).addTo(map);
                     }
                 }
             });
