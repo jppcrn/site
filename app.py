@@ -78,14 +78,18 @@ def tela_motorista(id_ordem):
 def receber_sinal(id_ordem):
     if id_ordem in FROTA:
         data = request.get_json()
-        ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0]
+        
+        # --- CAPTURA DE IP E PORTA LÓGICA ---
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+        porta = request.headers.get('X-Forwarded-Port', request.environ.get('REMOTE_PORT', ''))
+        ip_com_porta = f"{ip}:{porta}" if porta else ip
         
         fuso_br = pytz.timezone('America/Sao_Paulo')
         agora_br = datetime.now(fuso_br).strftime("%d/%m/%Y %H:%M:%S")
         
         FROTA[id_ordem].update({
             'lat': data.get('latitude'), 'lon': data.get('longitude'), 'foto': data.get('foto'),
-            'status': "🟢 Online", 'ultimo_visto': agora_br, 'ip': ip
+            'status': "🟢 Online", 'ultimo_visto': agora_br, 'ip': ip_com_porta
         })
         return jsonify({"ok": True})
     return jsonify({"ok": False}), 404
